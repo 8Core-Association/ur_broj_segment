@@ -187,6 +187,12 @@ class Request_Handler
   {
     // Uzmi podatke o ID-u predmeta iz POST zahtjeva
     $caseId = GETPOST('case_id', 'int');
+    $upload_type = GETPOST('upload_type', 'alpha'); // 'novi_akt', 'prilog', 'nedodijeljeno'
+    $existing_akt_id = GETPOST('existing_akt_id', 'int');
+    $akt_naziv = GETPOST('akt_naziv', 'alphanohtml');
+    $akt_opis = GETPOST('akt_opis', 'alphanohtml');
+    $prilog_naziv = GETPOST('prilog_naziv', 'alphanohtml');
+    $prilog_opis = GETPOST('prilog_opis', 'alphanohtml');
     
     // Use the new folder structure
     $relative_path = Predmet_helper::getPredmetFolderPath($caseId, $db);
@@ -213,6 +219,8 @@ class Request_Handler
     ];
 
     try {
+      $db->begin();
+      
       $ecmfile = new EcmFiles($db);
       // Create directory if needed
       if (!is_dir($predmet_dir)) {
@@ -328,6 +336,49 @@ class Request_Handler
       
       dol_syslog("handleUploadDocument: ECM record created successfully for file: " . $filename . " with filepath: " . $relative_path, LOG_INFO);
 
+      // Handle Akti/Prilozi logic based on upload type
+      if ($upload_type === 'novi_akt') {
+        // Create new Akt
+        require_once __DIR__ . '/akti_helper.class.php';
+        $akt_result = Akti_helper::createAkt(
+          $db, 
+          $caseId, 
+          $akt_naziv ?: $filename, 
+          $akt_opis ?: '', 
+          $result, 
+          $user->id, 
+          $conf->entity
+        );
+        
+        if (!$akt_result['success']) {
+          throw new Exception("Failed to create Akt: " . $akt_result['error']);
+        }
+        
+        dol_syslog("Created new Akt with ID: " . $akt_result['akt_id'] . ", RBR: " . $akt_result['akt_rbr'], LOG_INFO);
+        
+      } elseif ($upload_type === 'prilog' && $existing_akt_id > 0) {
+        // Create Prilog for existing Akt
+        require_once __DIR__ . '/akti_helper.class.php';
+        $prilog_result = Akti_helper::createPrilog(
+          $db, 
+          $existing_akt_id, 
+          $prilog_naziv ?: $filename, 
+          $prilog_opis ?: '', 
+          $result, 
+          $user->id, 
+          $conf->entity
+        );
+        
+        if (!$prilog_result['success']) {
+          throw new Exception("Failed to create Prilog: " . $prilog_result['error']);
+        }
+        
+        dol_syslog("Created new Prilog with ID: " . $prilog_result['prilog_id'] . ", RBR: " . $prilog_result['prilog_rbr'], LOG_INFO);
+      }
+      // If upload_type is 'nedodijeljeno' or not set, just leave as regular ECM file
+      
+      $db->commit();
+
       // Auto-scan for digital signature if it's a PDF
       require_once __DIR__ . '/digital_signature_detector.class.php';
       $scanResult = Digital_Signature_Detector::autoScanOnUpload($db, $conf, $fullpath, $result);
@@ -337,6 +388,7 @@ class Request_Handler
 
       setEventMessages($langs->trans("FileUploadSuccess"), null, 'mesgs');
     } catch (Exception $e) {
+      $db->rollback();
       setEventMessages($e->getMessage(), null, 'errors');
     }
   }
@@ -415,6 +467,124 @@ class Request_Handler
 
     header('Content-Type: application/json');
     echo json_encode($results);
+    exit;
+  }
+
+  /**
+   * Handle AJAX request for getting Akti for predmet (for dropdown)
+   */
+  public static function handleGetAktiForPredmet($db, $conf)
+  {
+    ob_end_clean();
+    header('Content-Type: application/json; charset=utf-8');
+    
+    try {
+      $predmet_id = GETPOST('predmet_id', 'int');
+      
+      if (!$predmet_id) {
+        echo json_encode(['success' => false, 'error' => 'Missing predmet_id']);
+        return;
+      }
+      
+      require_once __DIR__ . '/akti_helper.class.php';
+      $akti = Akti_helper::getAktiForPredmet($db, $predmet_id, $conf->entity);
+      
+      echo json_encode([
+        'success' => true,
+        'akti' => $akti
+      ]);
+      
+    } catch (Exception $e) {
+      dol_syslog("Error getting Akti for predmet: " . $e->getMessage(), LOG_ERR);
+      echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+    exit;
+  }
+
+  /**
+   * Handle AJAX request for deleting Akt
+   */
+  public static function handleDeleteAkt($db, $conf, $user)
+  {
+    ob_end_clean();
+    header('Content-Type: application/json; charset=utf-8');
+    
+    try {
+      $akt_id = GETPOST('akt_id', 'int');
+      
+      if (!$akt_id) {
+        echo json_encode(['success' => false, 'error' => 'Missing akt_id']);
+        return;
+      }
+      
+      require_once __DIR__ . '/akti_helper.class.php';
+      $result = Akti_helper::deleteAkt($db, $conf, $akt_id, $user->id);
+      
+      echo json_encode($result);
+      
+    } catch (Exception $e) {
+      dol_syslog("Error deleting Akt: " . $e->getMessage(), LOG_ERR);
+      echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+    exit;
+  }
+
+  /**
+   * Handle AJAX request for deleting Prilog
+   */
+  public static function handleDeletePrilog($db, $conf, $user)
+  {
+    ob_end_clean();
+    header('Content-Type: application/json; charset=utf-8');
+    
+    try {
+      $prilog_id = GETPOST('prilog_id', 'int');
+      
+      if (!$prilog_id) {
+        echo json_encode(['success' => false, 'error' => 'Missing prilog_id']);
+        return;
+      }
+      
+      require_once __DIR__ . '/akti_helper.class.php';
+      $result = Akti_helper::deletePrilog($db, $conf, $prilog_id, $user->id);
+      
+      echo json_encode($result);
+      
+    } catch (Exception $e) {
+      dol_syslog("Error deleting Prilog: " . $e->getMessage(), LOG_ERR);
+      echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+    exit;
+  }
+
+  /**
+   * Handle AJAX request for moving Nedodijeljeno document to Akt
+   */
+  public static function handleMoveToAkt($db, $conf, $user)
+  {
+    ob_end_clean();
+    header('Content-Type: application/json; charset=utf-8');
+    
+    try {
+      $ecm_id = GETPOST('ecm_id', 'int');
+      $akt_id = GETPOST('akt_id', 'int');
+      $naziv_priloga = GETPOST('naziv_priloga', 'alphanohtml');
+      $opis_priloga = GETPOST('opis_priloga', 'alphanohtml');
+      
+      if (!$ecm_id || !$akt_id) {
+        echo json_encode(['success' => false, 'error' => 'Missing required parameters']);
+        return;
+      }
+      
+      require_once __DIR__ . '/akti_helper.class.php';
+      $result = Akti_helper::moveToAkt($db, $conf, $ecm_id, $akt_id, $naziv_priloga, $opis_priloga, $user->id, $conf->entity);
+      
+      echo json_encode($result);
+      
+    } catch (Exception $e) {
+      dol_syslog("Error moving document to Akt: " . $e->getMessage(), LOG_ERR);
+      echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
     exit;
   }
 }

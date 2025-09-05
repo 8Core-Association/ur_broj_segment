@@ -1,0 +1,528 @@
+/**
+ * SEUP Akti i Prilozi - Hierarchical Document System Styles
+ * (c) 2025 8Core Association
+ */
+
+/* CSS Custom Properties for Akti & Prilozi */
+:root {
+  /* Akti colors */
+  --akt-primary: #2563eb;
+  --akt-primary-light: #dbeafe;
+  --akt-primary-dark: #1d4ed8;
+  
+  /* Prilog colors */
+  --prilog-secondary: #64748b;
+  --prilog-secondary-light: #f1f5f9;
+  --prilog-secondary-dark: #475569;
+  
+  /* Nedodijeljeno colors */
+  --nedodijeljeno-warning: #f59e0b;
+  --nedodijeljeno-warning-light: #fef3c7;
+  --nedodijeljeno-warning-dark: #d97706;
+  
+  /* Hierarchy spacing */
+  --indent-base: 1.5rem;
+  --indent-level-1: calc(var(--indent-base) * 1);
+  --indent-level-2: calc(var(--indent-base) * 2);
+}
+
+/* Hierarchical Table Base Styles */
+.seup-hierarchical-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+
+.seup-hierarchical-table thead th {
+  background: linear-gradient(135deg, var(--secondary-700), var(--secondary-800));
+  color: white;
+  font-weight: var(--font-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: var(--space-4);
+  border: none;
+}
+
+.seup-hierarchical-table tbody tr {
+  transition: all 0.2s ease;
+  border-bottom: 1px solid var(--neutral-200);
+}
+
+.seup-hierarchical-table tbody tr:hover {
+  background-color: var(--neutral-50);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Document Number Column */
+.seup-document-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3rem;
+  height: 2rem;
+  padding: 0 var(--space-2);
+  background: var(--primary-100);
+  color: var(--primary-700);
+  font-weight: var(--font-bold);
+  font-size: var(--text-sm);
+  border-radius: var(--radius-full);
+  border: 2px solid var(--primary-300);
+}
+
+/* Row Type Styles */
+.seup-akt-row {
+  background: linear-gradient(90deg, var(--akt-primary-light), transparent 10%);
+  border-left: 4px solid var(--akt-primary);
+  font-weight: var(--font-medium);
+}
+
+.seup-akt-row:hover {
+  background: linear-gradient(90deg, var(--akt-primary-light), var(--neutral-25) 15%);
+}
+
+.seup-akt-row .seup-document-number {
+  background: var(--akt-primary);
+  color: white;
+  border-color: var(--akt-primary-dark);
+}
+
+.seup-prilog-row {
+  background: linear-gradient(90deg, var(--prilog-secondary-light), transparent 8%);
+  border-left: 3px solid var(--prilog-secondary);
+}
+
+.seup-prilog-row:hover {
+  background: linear-gradient(90deg, var(--prilog-secondary-light), var(--neutral-25) 12%);
+}
+
+.seup-prilog-row .seup-document-number {
+  background: var(--prilog-secondary);
+  color: white;
+  border-color: var(--prilog-secondary-dark);
+  font-size: var(--text-xs);
+}
+
+.seup-nedodijeljeno-row {
+  background: linear-gradient(90deg, var(--nedodijeljeno-warning-light), transparent 8%);
+  border-left: 3px solid var(--nedodijeljeno-warning);
+}
+
+.seup-nedodijeljeno-row:hover {
+  background: linear-gradient(90deg, var(--nedodijeljeno-warning-light), var(--warning-25) 12%);
+}
+
+.seup-nedodijeljeno-row .seup-document-number {
+  background: var(--nedodijeljeno-warning);
+  color: white;
+  border-color: var(--nedodijeljeno-warning-dark);
+}
+
+/* Section Headers */
+.seup-section-header {
+  background: linear-gradient(135deg, var(--secondary-100), var(--secondary-50));
+  border-left: 4px solid var(--secondary-500);
+  font-weight: var(--font-bold);
+}
+
+.seup-section-header:hover {
+  background: linear-gradient(135deg, var(--secondary-150), var(--secondary-75));
+}
+
+.seup-section-title {
+  display: flex;
+  align-items: center;
+  font-size: var(--text-lg);
+  color: var(--secondary-700);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.seup-section-title i {
+  margin-right: var(--space-2);
+  color: var(--secondary-500);
+}
+
+/* Document Indentation */
+.seup-document-indent {
+  position: relative;
+  margin-left: var(--indent-level-1);
+  padding-left: var(--space-4);
+}
+
+.seup-document-indent::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: var(--space-4);
+  height: 2px;
+  background: var(--neutral-300);
+  transform: translateY(-50%);
+}
+
+.seup-document-indent::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 50%;
+  width: 2px;
+  background: var(--neutral-300);
+}
+
+/* Document Description */
+.seup-document-description {
+  display: block;
+  margin-top: var(--space-1);
+  font-style: italic;
+  color: var(--secondary-600);
+  font-size: var(--text-sm);
+  line-height: var(--leading-tight);
+}
+
+/* Document Actions Enhanced */
+.seup-document-actions {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.seup-document-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.seup-document-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.seup-document-btn-download {
+  background: var(--primary-500);
+  color: white;
+}
+
+.seup-document-btn-download:hover {
+  background: var(--primary-600);
+  color: white;
+}
+
+.seup-document-btn-edit {
+  background: var(--success-500);
+  color: white;
+}
+
+.seup-document-btn-edit:hover {
+  background: var(--success-600);
+  color: white;
+}
+
+.seup-document-btn-move {
+  background: var(--warning-500);
+  color: white;
+}
+
+.seup-document-btn-move:hover {
+  background: var(--warning-600);
+  color: white;
+}
+
+.seup-document-btn-delete {
+  background: var(--error-500);
+  color: white;
+}
+
+.seup-document-btn-delete:hover {
+  background: var(--error-600);
+  color: white;
+}
+
+/* Upload Modal Styles */
+.seup-upload-modal .seup-modal-content {
+  max-width: 600px;
+}
+
+.seup-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.seup-radio-option {
+  display: flex;
+  align-items: center;
+  padding: var(--space-4);
+  border: 2px solid var(--neutral-300);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: white;
+}
+
+.seup-radio-option:hover {
+  border-color: var(--primary-400);
+  background: var(--primary-25);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.seup-radio-option input[type="radio"] {
+  margin-right: var(--space-3);
+  transform: scale(1.2);
+}
+
+.seup-radio-option:has(input[type="radio"]:checked) {
+  border-color: var(--primary-500);
+  background: var(--primary-50);
+  box-shadow: 0 0 0 3px var(--primary-100);
+}
+
+.seup-radio-label {
+  font-weight: var(--font-medium);
+  color: var(--secondary-700);
+  font-size: var(--text-base);
+}
+
+.seup-radio-option:has(input[type="radio"]:checked) .seup-radio-label {
+  font-weight: var(--font-semibold);
+  color: var(--primary-700);
+}
+
+/* Form Controls */
+.seup-form-group {
+  margin-bottom: var(--space-5);
+}
+
+.seup-form-label {
+  display: block;
+  margin-bottom: var(--space-2);
+  font-weight: var(--font-semibold);
+  color: var(--secondary-700);
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.seup-form-control {
+  width: 100%;
+  padding: var(--space-3);
+  border: 2px solid var(--neutral-300);
+  border-radius: var(--radius-md);
+  font-size: var(--text-base);
+  font-family: inherit;
+  transition: all 0.2s ease;
+  background: white;
+}
+
+.seup-form-control:focus {
+  outline: none;
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 3px var(--primary-100);
+}
+
+.seup-form-control:hover {
+  border-color: var(--primary-400);
+}
+
+/* Move Modal Styles */
+.seup-move-doc-info {
+  display: flex;
+  align-items: center;
+  padding: var(--space-4);
+  background: linear-gradient(135deg, var(--neutral-50), var(--neutral-25));
+  border: 2px solid var(--neutral-200);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-5);
+}
+
+.seup-move-doc-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  background: var(--primary-100);
+  color: var(--primary-600);
+  border-radius: var(--radius-full);
+  margin-right: var(--space-4);
+  font-size: var(--text-xl);
+}
+
+.seup-move-doc-details {
+  flex: 1;
+}
+
+.seup-move-doc-name {
+  font-weight: var(--font-bold);
+  color: var(--secondary-800);
+  font-size: var(--text-lg);
+  margin-bottom: var(--space-1);
+}
+
+.seup-move-doc-description {
+  color: var(--secondary-600);
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
+}
+
+/* Loading States */
+.seup-loading {
+  position: relative;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.seup-loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 1rem;
+  height: 1rem;
+  margin: -0.5rem 0 0 -0.5rem;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .seup-hierarchical-table {
+    font-size: var(--text-sm);
+  }
+  
+  .seup-document-indent {
+    margin-left: var(--space-4);
+    padding-left: var(--space-2);
+  }
+  
+  .seup-document-actions {
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  
+  .seup-document-btn {
+    width: 2rem;
+    height: 2rem;
+    font-size: var(--text-xs);
+  }
+  
+  .seup-radio-group {
+    gap: var(--space-2);
+  }
+  
+  .seup-radio-option {
+    padding: var(--space-3);
+  }
+}
+
+/* Print Styles */
+@media print {
+  .seup-hierarchical-table {
+    box-shadow: none;
+    border: 1px solid var(--neutral-400);
+  }
+  
+  .seup-document-actions {
+    display: none;
+  }
+  
+  .seup-akt-row,
+  .seup-prilog-row,
+  .seup-nedodijeljeno-row {
+    background: none !important;
+    border-left: 2px solid var(--neutral-400) !important;
+  }
+  
+  .seup-document-number {
+    background: var(--neutral-200) !important;
+    color: var(--neutral-800) !important;
+    border-color: var(--neutral-400) !important;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --akt-primary-light: #1e3a8a;
+    --prilog-secondary-light: #334155;
+    --nedodijeljeno-warning-light: #92400e;
+  }
+  
+  .seup-hierarchical-table tbody tr:hover {
+    background-color: var(--neutral-800);
+  }
+  
+  .seup-form-control {
+    background: var(--neutral-800);
+    border-color: var(--neutral-600);
+    color: var(--neutral-100);
+  }
+  
+  .seup-move-doc-info {
+    background: linear-gradient(135deg, var(--neutral-800), var(--neutral-700));
+    border-color: var(--neutral-600);
+  }
+}
+
+/* Animation Enhancements */
+.seup-hierarchical-table tbody tr {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Focus Indicators for Accessibility */
+.seup-document-btn:focus,
+.seup-radio-option:focus-within,
+.seup-form-control:focus {
+  outline: 2px solid var(--primary-500);
+  outline-offset: 2px;
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  .seup-akt-row,
+  .seup-prilog-row,
+  .seup-nedodijeljeno-row {
+    border-left-width: 6px;
+  }
+  
+  .seup-document-number {
+    border-width: 3px;
+    font-weight: var(--font-bold);
+  }
+  
+  .seup-document-btn {
+    border: 2px solid currentColor;
+  }
+}

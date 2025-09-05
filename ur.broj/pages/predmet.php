@@ -86,6 +86,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
     
+    // Handle AJAX requests
+    if ($action === 'get_akti_for_predmet') {
+        Request_Handler::handleGetAktiForPredmet($db, $conf);
+        exit;
+    }
+    
+    if ($action === 'delete_akt') {
+        Request_Handler::handleDeleteAkt($db, $conf, $user);
+        exit;
+    }
+    
+    if ($action === 'delete_prilog') {
+        Request_Handler::handleDeletePrilog($db, $conf, $user);
+        exit;
+    }
+    
+    if ($action === 'move_to_akt') {
+        Request_Handler::handleMoveToAkt($db, $conf, $user);
+        exit;
+    }
+    
     // Handle document deletion
     if ($action === 'delete_document') {
         header('Content-Type: application/json');
@@ -203,6 +224,7 @@ print '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-
 print '<link href="/custom/seup/css/seup-modern.css" rel="stylesheet">';
 print '<link href="/custom/seup/css/predmet.css" rel="stylesheet">';
 print '<link href="/custom/seup/css/prilozi.css" rel="stylesheet">';
+print '<link href="/custom/seup/css/akti-prilozi.css" rel="stylesheet">';
 
 // Main container
 print '<div class="seup-predmet-container">';
@@ -260,21 +282,9 @@ print '<div class="seup-tab-pane active" id="prilozi">';
 print '<div class="seup-upload-section">';
 print '<i class="fas fa-cloud-upload-alt seup-upload-icon"></i>';
 print '<p class="seup-upload-text">Dodajte novi dokument u predmet</p>';
-print '<form method="post" enctype="multipart/form-data" id="uploadForm">';
-print '<input type="hidden" name="action" value="upload_document">';
-print '<input type="hidden" name="case_id" value="' . $caseId . '">';
-print '<input type="file" name="document" id="documentFile" accept=".pdf,.docx,.xlsx,.doc,.xls,.jpg,.jpeg,.png,.odt" style="display: none;">';
-print '<button type="button" class="seup-btn seup-btn-primary" id="selectFileBtn">';
-print '<i class="fas fa-plus me-2"></i>Odaberi datoteku';
+print '<button type="button" class="seup-btn seup-btn-primary" id="openUploadModalBtn">';
+print '<i class="fas fa-plus me-2"></i>Dodaj dokument';
 print '</button>';
-print '<button type="submit" class="seup-btn seup-btn-success" id="uploadBtn" style="display: none;">';
-print '<i class="fas fa-upload me-2"></i>Učitaj dokument';
-print '</button>';
-print '</form>';
-print '<div class="seup-upload-progress" id="uploadProgress">';
-print '<div class="seup-progress-bar"><div class="seup-progress-fill" id="progressFill"></div></div>';
-print '<div class="seup-progress-text" id="progressText">Učitavanje...</div>';
-print '</div>';
 print '</div>';
 
 // Documents list
@@ -447,6 +457,124 @@ print '</div>';
 print '</div>';
 print '</div>';
 
+// Upload Modal
+print '<div class="seup-modal" id="uploadModal">';
+print '<div class="seup-modal-content" style="max-width: 600px;">';
+print '<div class="seup-modal-header">';
+print '<h5 class="seup-modal-title"><i class="fas fa-upload me-2"></i>Dodaj Dokument</h5>';
+print '<button type="button" class="seup-modal-close" id="closeUploadModal">&times;</button>';
+print '</div>';
+print '<div class="seup-modal-body">';
+
+print '<form method="post" enctype="multipart/form-data" id="uploadForm">';
+print '<input type="hidden" name="action" value="upload_document">';
+print '<input type="hidden" name="case_id" value="' . $caseId . '">';
+
+// Upload type selection
+print '<div class="seup-form-group">';
+print '<label class="seup-form-label">Tip dokumenta:</label>';
+print '<div class="seup-radio-group">';
+print '<label class="seup-radio-option">';
+print '<input type="radio" name="upload_type" value="novi_akt" id="uploadTypeNoviAkt" checked>';
+print '<span class="seup-radio-label">Novi AKT</span>';
+print '</label>';
+print '<label class="seup-radio-option">';
+print '<input type="radio" name="upload_type" value="prilog" id="uploadTypePrilog">';
+print '<span class="seup-radio-label">PRILOG za postojeći Akt</span>';
+print '</label>';
+print '<label class="seup-radio-option">';
+print '<input type="radio" name="upload_type" value="nedodijeljeno" id="uploadTypeNedodijeljeno">';
+print '<span class="seup-radio-label">NEDODIJELJENO</span>';
+print '</label>';
+print '</div>';
+print '</div>';
+
+// Akt selection (for prilozi)
+print '<div class="seup-form-group" id="aktSelectionGroup" style="display: none;">';
+print '<label class="seup-form-label" for="existing_akt_id">Odaberite Akt:</label>';
+print '<select name="existing_akt_id" id="existing_akt_id" class="seup-form-control">';
+print '<option value="">Učitavam Aktove...</option>';
+print '</select>';
+print '</div>';
+
+// Akt details (for novi akt)
+print '<div class="seup-form-group" id="aktDetailsGroup">';
+print '<label class="seup-form-label" for="akt_naziv">Naziv Akta:</label>';
+print '<input type="text" name="akt_naziv" id="akt_naziv" class="seup-form-control" placeholder="Automatski iz naziva datoteke">';
+print '<label class="seup-form-label" for="akt_opis">Opis Akta:</label>';
+print '<textarea name="akt_opis" id="akt_opis" class="seup-form-control" rows="2" placeholder="Opcionalno"></textarea>';
+print '</div>';
+
+// Prilog details (for prilozi)
+print '<div class="seup-form-group" id="prilogDetailsGroup" style="display: none;">';
+print '<label class="seup-form-label" for="prilog_naziv">Naziv Priloga:</label>';
+print '<input type="text" name="prilog_naziv" id="prilog_naziv" class="seup-form-control" placeholder="Automatski iz naziva datoteke">';
+print '<label class="seup-form-label" for="prilog_opis">Opis Priloga:</label>';
+print '<textarea name="prilog_opis" id="prilog_opis" class="seup-form-control" rows="2" placeholder="Opcionalno"></textarea>';
+print '</div>';
+
+// File selection
+print '<div class="seup-form-group">';
+print '<label class="seup-form-label" for="documentFile">Datoteka:</label>';
+print '<input type="file" name="document" id="documentFile" class="seup-form-control" accept=".pdf,.docx,.xlsx,.doc,.xls,.jpg,.jpeg,.png,.odt" required>';
+print '</div>';
+
+print '</form>';
+
+print '</div>';
+print '<div class="seup-modal-footer">';
+print '<button type="button" class="seup-btn seup-btn-secondary" id="cancelUploadBtn">Odustani</button>';
+print '<button type="submit" form="uploadForm" class="seup-btn seup-btn-success" id="confirmUploadBtn">';
+print '<i class="fas fa-upload me-2"></i>Učitaj';
+print '</button>';
+print '</div>';
+print '</div>';
+print '</div>';
+
+// Move to Akt Modal
+print '<div class="seup-modal" id="moveToAktModal">';
+print '<div class="seup-modal-content" style="max-width: 500px;">';
+print '<div class="seup-modal-header">';
+print '<h5 class="seup-modal-title"><i class="fas fa-arrow-right me-2"></i>Premjesti u Akt</h5>';
+print '<button type="button" class="seup-modal-close" id="closeMoveModal">&times;</button>';
+print '</div>';
+print '<div class="seup-modal-body">';
+
+print '<div class="seup-move-doc-info">';
+print '<div class="seup-move-doc-icon"><i class="fas fa-file-alt"></i></div>';
+print '<div class="seup-move-doc-details">';
+print '<div class="seup-move-doc-name" id="moveDocName">document.pdf</div>';
+print '<div class="seup-move-doc-description">Odaberite Akt u koji želite premjestiti ovaj dokument kao Prilog</div>';
+print '</div>';
+print '</div>';
+
+print '<div class="seup-form-group">';
+print '<label class="seup-form-label" for="move_akt_id">Odaberite Akt:</label>';
+print '<select name="move_akt_id" id="move_akt_id" class="seup-form-control" required>';
+print '<option value="">Učitavam Aktove...</option>';
+print '</select>';
+print '</div>';
+
+print '<div class="seup-form-group">';
+print '<label class="seup-form-label" for="move_naziv_priloga">Naziv Priloga:</label>';
+print '<input type="text" name="move_naziv_priloga" id="move_naziv_priloga" class="seup-form-control" placeholder="Automatski iz naziva datoteke">';
+print '</div>';
+
+print '<div class="seup-form-group">';
+print '<label class="seup-form-label" for="move_opis_priloga">Opis Priloga:</label>';
+print '<textarea name="move_opis_priloga" id="move_opis_priloga" class="seup-form-control" rows="2" placeholder="Opcionalno"></textarea>';
+print '</div>';
+
+print '</div>';
+print '<div class="seup-modal-footer">';
+print '<button type="button" class="seup-btn seup-btn-secondary" id="cancelMoveBtn">Odustani</button>';
+print '<button type="button" class="seup-btn seup-btn-primary" id="confirmMoveBtn">';
+print '<i class="fas fa-arrow-right me-2"></i>Premjesti';
+print '</button>';
+print '</div>';
+print '</div>';
+print '</div>';
+
 // Delete Document Modal
 print '<div class="seup-modal" id="deleteDocModal">';
 print '<div class="seup-modal-content">';
@@ -475,6 +603,62 @@ print '</div>';
 print '</div>';
 print '</div>';
 
+// Delete Akt Modal
+print '<div class="seup-modal" id="deleteAktModal">';
+print '<div class="seup-modal-content">';
+print '<div class="seup-modal-header">';
+print '<h5 class="seup-modal-title"><i class="fas fa-trash me-2"></i>Brisanje Akta</h5>';
+print '<button type="button" class="seup-modal-close" id="closeDeleteAktModal">&times;</button>';
+print '</div>';
+print '<div class="seup-modal-body">';
+print '<div class="seup-delete-doc-info">';
+print '<div class="seup-delete-doc-icon"><i class="fas fa-folder"></i></div>';
+print '<div class="seup-delete-doc-details">';
+print '<div class="seup-delete-doc-name" id="deleteAktName">AKT 01</div>';
+print '<div class="seup-delete-doc-warning">';
+print '<i class="fas fa-exclamation-triangle"></i>';
+print 'Jeste li sigurni da želite obrisati ovaj Akt i sve njegove Priloge? Ova akcija je nepovratna.';
+print '</div>';
+print '</div>';
+print '</div>';
+print '</div>';
+print '<div class="seup-modal-footer">';
+print '<button type="button" class="seup-btn seup-btn-secondary" id="cancelDeleteAktBtn">Odustani</button>';
+print '<button type="button" class="seup-btn seup-btn-danger" id="confirmDeleteAktBtn">';
+print '<i class="fas fa-trash me-2"></i>Obriši Akt';
+print '</button>';
+print '</div>';
+print '</div>';
+print '</div>';
+
+// Delete Prilog Modal
+print '<div class="seup-modal" id="deletePrilogModal">';
+print '<div class="seup-modal-content">';
+print '<div class="seup-modal-header">';
+print '<h5 class="seup-modal-title"><i class="fas fa-trash me-2"></i>Brisanje Priloga</h5>';
+print '<button type="button" class="seup-modal-close" id="closeDeletePrilogModal">&times;</button>';
+print '</div>';
+print '<div class="seup-modal-body">';
+print '<div class="seup-delete-doc-info">';
+print '<div class="seup-delete-doc-icon"><i class="fas fa-file-alt"></i></div>';
+print '<div class="seup-delete-doc-details">';
+print '<div class="seup-delete-doc-name" id="deletePrilogName">01-01 Prilog</div>';
+print '<div class="seup-delete-doc-warning">';
+print '<i class="fas fa-exclamation-triangle"></i>';
+print 'Jeste li sigurni da želite obrisati ovaj Prilog? Ova akcija je nepovratna.';
+print '</div>';
+print '</div>';
+print '</div>';
+print '</div>';
+print '<div class="seup-modal-footer">';
+print '<button type="button" class="seup-btn seup-btn-secondary" id="cancelDeletePrilogBtn">Odustani</button>';
+print '<button type="button" class="seup-btn seup-btn-danger" id="confirmDeletePrilogBtn">';
+print '<i class="fas fa-trash me-2"></i>Obriši Prilog';
+print '</button>';
+print '</div>';
+print '</div>';
+print '</div>';
+
 // JavaScript for enhanced functionality
 print '<script src="/custom/seup/js/seup-modern.js"></script>';
 
@@ -482,6 +666,8 @@ print '<script src="/custom/seup/js/seup-modern.js"></script>';
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {
+    const caseId = <?php echo $caseId; ?>;
+    
     // Tab functionality
     const tabs = document.querySelectorAll('.seup-tab');
     const tabPanes = document.querySelectorAll('.seup-tab-pane');
@@ -500,24 +686,271 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     });
 
-    // File upload functionality
-    const selectFileBtn = document.getElementById('selectFileBtn');
-    const documentFile = document.getElementById('documentFile');
-    const uploadBtn = document.getElementById('uploadBtn');
+    // Upload Modal functionality
+    const openUploadModalBtn = document.getElementById('openUploadModalBtn');
+    const uploadModal = document.getElementById('uploadModal');
+    const closeUploadModal = document.getElementById('closeUploadModal');
+    const cancelUploadBtn = document.getElementById('cancelUploadBtn');
     const uploadForm = document.getElementById('uploadForm');
-    const uploadProgress = document.getElementById('uploadProgress');
+    const confirmUploadBtn = document.getElementById('confirmUploadBtn');
+    
+    // Upload type radio buttons
+    const uploadTypeNoviAkt = document.getElementById('uploadTypeNoviAkt');
+    const uploadTypePrilog = document.getElementById('uploadTypePrilog');
+    const uploadTypeNedodijeljeno = document.getElementById('uploadTypeNedodijeljeno');
+    
+    // Form groups
+    const aktSelectionGroup = document.getElementById('aktSelectionGroup');
+    const aktDetailsGroup = document.getElementById('aktDetailsGroup');
+    const prilogDetailsGroup = document.getElementById('prilogDetailsGroup');
+    
+    // Form elements
+    const existingAktSelect = document.getElementById('existing_akt_id');
+    const dokumentFile = document.getElementById('documentFile');
+    const aktNaziv = document.getElementById('akt_naziv');
+    const prilogNaziv = document.getElementById('prilog_naziv');
+    const moveNazivPriloga = document.getElementById('move_naziv_priloga');
 
-    if (selectFileBtn && documentFile) {
-        selectFileBtn.addEventListener('click', function() {
-            documentFile.click();
+    if (openUploadModalBtn) {
+        openUploadModalBtn.addEventListener('click', function() {
+            uploadModal.classList.add('show');
+            loadAktiForDropdown();
         });
-
-        documentFile.addEventListener('change', function() {
+    }
+    
+    function closeUploadModalFunc() {
+        uploadModal.classList.remove('show');
+        uploadForm.reset();
+        resetUploadFormVisibility();
+    }
+    
+    if (closeUploadModal) closeUploadModal.addEventListener('click', closeUploadModalFunc);
+    if (cancelUploadBtn) cancelUploadBtn.addEventListener('click', closeUploadModalFunc);
+    
+    // Close modal when clicking outside
+    uploadModal.addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeUploadModalFunc();
+        }
+    });
+    
+    // Upload type change handlers
+    function handleUploadTypeChange() {
+        resetUploadFormVisibility();
+        
+        if (uploadTypeNoviAkt.checked) {
+            aktDetailsGroup.style.display = 'block';
+        } else if (uploadTypePrilog.checked) {
+            aktSelectionGroup.style.display = 'block';
+            prilogDetailsGroup.style.display = 'block';
+        }
+        // nedodijeljeno doesn't need any additional fields
+    }
+    
+    function resetUploadFormVisibility() {
+        aktSelectionGroup.style.display = 'none';
+        aktDetailsGroup.style.display = 'none';
+        prilogDetailsGroup.style.display = 'none';
+    }
+    
+    uploadTypeNoviAkt.addEventListener('change', handleUploadTypeChange);
+    uploadTypePrilog.addEventListener('change', handleUploadTypeChange);
+    uploadTypeNedodijeljeno.addEventListener('change', handleUploadTypeChange);
+    
+    // Auto-fill naziv fields when file is selected
+    if (dokumentFile) {
+        dokumentFile.addEventListener('change', function() {
             if (this.files.length > 0) {
-                const file = this.files[0];
-                selectFileBtn.innerHTML = `<i class="fas fa-file me-2"></i>${file.name}`;
-                uploadBtn.style.display = 'inline-flex';
+                const filename = this.files[0].name;
+                const nameWithoutExt = filename.substring(0, filename.lastIndexOf('.')) || filename;
+                
+                if (aktNaziv && !aktNaziv.value) {
+                    aktNaziv.value = nameWithoutExt;
+                }
+                if (prilogNaziv && !prilogNaziv.value) {
+                    prilogNaziv.value = nameWithoutExt;
+                }
+                if (moveNazivPriloga && !moveNazivPriloga.value) {
+                    moveNazivPriloga.value = nameWithoutExt;
+                }
             }
+        });
+    }
+    
+    // Load Akti for dropdown
+    function loadAktiForDropdown() {
+        const selects = [existingAktSelect, document.getElementById('move_akt_id')];
+        
+        fetch('?action=get_akti_for_predmet', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'predmet_id=' + caseId
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                selects.forEach(select => {
+                    if (select) {
+                        select.innerHTML = '<option value="">Odaberite Akt</option>';
+                        data.akti.forEach(akt => {
+                            const option = document.createElement('option');
+                            option.value = akt.id;
+                            option.textContent = akt.display;
+                            select.appendChild(option);
+                        });
+                    }
+                });
+            } else {
+                selects.forEach(select => {
+                    if (select) {
+                        select.innerHTML = '<option value="">Nema dostupnih Akata</option>';
+                    }
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error loading Akti:', error);
+            selects.forEach(select => {
+                if (select) {
+                    select.innerHTML = '<option value="">Greška pri učitavanju</option>';
+                }
+            });
+        });
+    }
+
+    // Delete Akt functionality
+    function closeDeleteAktModal() {
+        document.getElementById('deleteAktModal').classList.remove('show');
+        currentDeleteAktId = null;
+    }
+
+    function confirmDeleteAkt() {
+        if (!currentDeleteAktId) return;
+        
+        const confirmBtn = document.getElementById('confirmDeleteAktBtn');
+        confirmBtn.classList.add('seup-loading');
+        
+        const formData = new FormData();
+        formData.append('action', 'delete_akt');
+        formData.append('akt_id', currentDeleteAktId);
+        
+        fetch('', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showMessage(data.message, 'success');
+                closeDeleteAktModal();
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                showMessage('Greška pri brisanju: ' + data.error, 'error');
+            }
+        })
+        .catch(error => {
+            showMessage('Došlo je do greške pri brisanju Akta', 'error');
+        })
+        .finally(() => {
+            confirmBtn.classList.remove('seup-loading');
+        });
+    }
+
+    // Delete Prilog functionality
+    function closeDeletePrilogModal() {
+        document.getElementById('deletePrilogModal').classList.remove('show');
+        currentDeletePrilogId = null;
+    }
+
+    function confirmDeletePrilog() {
+        if (!currentDeletePrilogId) return;
+        
+        const confirmBtn = document.getElementById('confirmDeletePrilogBtn');
+        confirmBtn.classList.add('seup-loading');
+        
+        const formData = new FormData();
+        formData.append('action', 'delete_prilog');
+        formData.append('prilog_id', currentDeletePrilogId);
+        
+        fetch('', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showMessage(data.message, 'success');
+                closeDeletePrilogModal();
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                showMessage('Greška pri brisanju: ' + data.error, 'error');
+            }
+        })
+        .catch(error => {
+            showMessage('Došlo je do greške pri brisanju Priloga', 'error');
+        })
+        .finally(() => {
+            confirmBtn.classList.remove('seup-loading');
+        });
+    }
+
+    // Move to Akt functionality
+    let currentMoveData = null;
+
+    function closeMoveModal() {
+        document.getElementById('moveToAktModal').classList.remove('show');
+        currentMoveData = null;
+    }
+
+    function confirmMove() {
+        if (!currentMoveData) return;
+        
+        const aktId = document.getElementById('move_akt_id').value;
+        const nazivPriloga = document.getElementById('move_naziv_priloga').value;
+        const opisPriloga = document.getElementById('move_opis_priloga').value;
+        
+        if (!aktId) {
+            showMessage('Molimo odaberite Akt', 'error');
+            return;
+        }
+        
+        const confirmBtn = document.getElementById('confirmMoveBtn');
+        confirmBtn.classList.add('seup-loading');
+        
+        const formData = new FormData();
+        formData.append('action', 'move_to_akt');
+        formData.append('ecm_id', currentMoveData.ecmId);
+        formData.append('akt_id', aktId);
+        formData.append('naziv_priloga', nazivPriloga);
+        formData.append('opis_priloga', opisPriloga);
+        
+        fetch('', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showMessage(data.message, 'success');
+                closeMoveModal();
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                showMessage('Greška pri premještanju: ' + data.error, 'error');
+            }
+        })
+        .catch(error => {
+            showMessage('Došlo je do greške pri premještanju dokumenta', 'error');
+        })
+        .finally(() => {
+            confirmBtn.classList.remove('seup-loading');
         });
     }
 
@@ -525,14 +958,18 @@ document.addEventListener("DOMContentLoaded", function() {
         uploadForm.addEventListener('submit', function(e) {
             e.preventDefault();
             
-            if (!documentFile.files.length) {
+            if (!dokumentFile.files.length) {
                 showMessage('Molimo odaberite datoteku', 'error');
                 return;
             }
 
-            // Show progress
-            uploadProgress.style.display = 'block';
-            uploadBtn.classList.add('seup-loading');
+            // Validate form based on upload type
+            if (uploadTypePrilog.checked && !existingAktSelect.value) {
+                showMessage('Molimo odaberite Akt za prilog', 'error');
+                return;
+            }
+
+            confirmUploadBtn.classList.add('seup-loading');
 
             // Submit form
             const formData = new FormData(this);
@@ -544,20 +981,18 @@ document.addEventListener("DOMContentLoaded", function() {
             .then(response => {
                 if (response.ok) {
                     showMessage('Dokument je uspješno učitan', 'success');
+                    closeUploadModalFunc();
                     // Reload page to show new document
                     setTimeout(() => {
                         window.location.reload();
                     }, 1500);
                 } else {
-                    throw new Error('Upload failed');
+                    showMessage('Greška pri učitavanju dokumenta', 'error');
                 }
-            })
-            .catch(error => {
                 showMessage('Greška pri učitavanju dokumenta', 'error');
             })
             .finally(() => {
-                uploadProgress.style.display = 'none';
-                uploadBtn.classList.remove('seup-loading');
+                confirmUploadBtn.classList.remove('seup-loading');
             });
         });
     }
@@ -696,8 +1131,11 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // Document deletion functionality
     let currentDeleteData = null;
+    let currentDeleteAktId = null;
+    let currentDeletePrilogId = null;
 
     document.addEventListener('click', function(e) {
+        // Handle regular document deletion (nedodijeljena)
         if (e.target.closest('.delete-document-btn')) {
             const btn = e.target.closest('.delete-document-btn');
             const filename = btn.dataset.filename;
@@ -710,6 +1148,53 @@ document.addEventListener("DOMContentLoaded", function() {
             
             // Show modal
             document.getElementById('deleteDocModal').classList.add('show');
+        }
+        
+        // Handle Akt deletion
+        if (e.target.closest('.delete-akt-btn')) {
+            const btn = e.target.closest('.delete-akt-btn');
+            const aktId = btn.dataset.aktId;
+            const filename = btn.dataset.filename;
+            
+            currentDeleteAktId = aktId;
+            
+            // Update modal content
+            document.getElementById('deleteAktName').textContent = filename;
+            
+            // Show modal
+            document.getElementById('deleteAktModal').classList.add('show');
+        }
+        
+        // Handle Prilog deletion
+        if (e.target.closest('.delete-prilog-btn')) {
+            const btn = e.target.closest('.delete-prilog-btn');
+            const prilogId = btn.dataset.prilogId;
+            const filename = btn.dataset.filename;
+            
+            currentDeletePrilogId = prilogId;
+            
+            // Update modal content
+            document.getElementById('deletePrilogName').textContent = filename;
+            
+            // Show modal
+            document.getElementById('deletePrilogModal').classList.add('show');
+        }
+        
+        // Handle Move to Akt
+        if (e.target.closest('.move-to-akt-btn')) {
+            const btn = e.target.closest('.move-to-akt-btn');
+            const ecmId = btn.dataset.ecmId;
+            const filename = btn.dataset.filename;
+            
+            currentMoveData = { ecmId, filename };
+            
+            // Update modal content
+            document.getElementById('moveDocName').textContent = filename;
+            document.getElementById('move_naziv_priloga').value = filename.substring(0, filename.lastIndexOf('.')) || filename;
+            
+            // Load Akti and show modal
+            loadAktiForDropdown();
+            document.getElementById('moveToAktModal').classList.add('show');
         }
     });
 
@@ -766,6 +1251,38 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     });
 
+    // Delete Akt modal event listeners
+    document.getElementById('closeDeleteAktModal').addEventListener('click', closeDeleteAktModal);
+    document.getElementById('cancelDeleteAktBtn').addEventListener('click', closeDeleteAktModal);
+    document.getElementById('confirmDeleteAktBtn').addEventListener('click', confirmDeleteAkt);
+
+    document.getElementById('deleteAktModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeDeleteAktModal();
+        }
+    });
+
+    // Delete Prilog modal event listeners
+    document.getElementById('closeDeletePrilogModal').addEventListener('click', closeDeletePrilogModal);
+    document.getElementById('cancelDeletePrilogBtn').addEventListener('click', closeDeletePrilogModal);
+    document.getElementById('confirmDeletePrilogBtn').addEventListener('click', confirmDeletePrilog);
+
+    document.getElementById('deletePrilogModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeDeletePrilogModal();
+        }
+    });
+
+    // Move modal event listeners
+    document.getElementById('closeMoveModal').addEventListener('click', closeMoveModal);
+    document.getElementById('cancelMoveBtn').addEventListener('click', closeMoveModal);
+    document.getElementById('confirmMoveBtn').addEventListener('click', confirmMove);
+
+    document.getElementById('moveToAktModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeMoveModal();
+        }
+    });
     // Toast message function
     window.showMessage = function(message, type = 'success', duration = 5000) {
         let messageEl = document.querySelector('.seup-message-toast');
@@ -789,6 +1306,161 @@ document.addEventListener("DOMContentLoaded", function() {
 </script>
 
 <style>
+/* Hierarchical table styles */
+.seup-hierarchical-table .seup-document-number {
+    font-weight: var(--font-bold);
+    color: var(--primary-600);
+    font-size: var(--text-sm);
+}
+
+.seup-hierarchical-table .seup-akt-row {
+    background-color: var(--primary-50);
+    border-left: 4px solid var(--primary-500);
+}
+
+.seup-hierarchical-table .seup-prilog-row {
+    background-color: var(--neutral-25);
+}
+
+.seup-hierarchical-table .seup-nedodijeljeno-row {
+    background-color: var(--warning-25);
+}
+
+.seup-hierarchical-table .seup-section-header {
+    background-color: var(--secondary-100);
+    border-left: 4px solid var(--secondary-500);
+}
+
+.seup-hierarchical-table .seup-section-title {
+    font-weight: var(--font-bold);
+    color: var(--secondary-700);
+    font-size: var(--text-base);
+}
+
+.seup-hierarchical-table .seup-document-indent {
+    margin-left: var(--space-6);
+    padding-left: var(--space-3);
+    border-left: 2px solid var(--neutral-300);
+}
+
+.seup-hierarchical-table .seup-document-description {
+    font-style: italic;
+    color: var(--secondary-600);
+}
+
+.seup-hierarchical-table .seup-indent-1 {
+    position: relative;
+}
+
+.seup-hierarchical-table .seup-indent-1::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background-color: var(--neutral-300);
+}
+
+/* Upload modal styles */
+.seup-radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.seup-radio-option {
+    display: flex;
+    align-items: center;
+    padding: var(--space-3);
+    border: 2px solid var(--neutral-300);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.seup-radio-option:hover {
+    border-color: var(--primary-400);
+    background-color: var(--primary-25);
+}
+
+.seup-radio-option input[type="radio"] {
+    margin-right: var(--space-3);
+}
+
+.seup-radio-option input[type="radio"]:checked + .seup-radio-label {
+    font-weight: var(--font-semibold);
+    color: var(--primary-700);
+}
+
+.seup-radio-option:has(input[type="radio"]:checked) {
+    border-color: var(--primary-500);
+    background-color: var(--primary-50);
+}
+
+.seup-form-group {
+    margin-bottom: var(--space-4);
+}
+
+.seup-form-label {
+    display: block;
+    margin-bottom: var(--space-2);
+    font-weight: var(--font-medium);
+    color: var(--secondary-700);
+}
+
+.seup-form-control {
+    width: 100%;
+    padding: var(--space-3);
+    border: 2px solid var(--neutral-300);
+    border-radius: var(--radius-md);
+    font-size: var(--text-base);
+    transition: border-color 0.2s ease;
+}
+
+.seup-form-control:focus {
+    outline: none;
+    border-color: var(--primary-500);
+    box-shadow: 0 0 0 3px var(--primary-100);
+}
+
+/* Move modal styles */
+.seup-move-doc-info {
+    display: flex;
+    align-items: center;
+    padding: var(--space-4);
+    background-color: var(--neutral-50);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-4);
+}
+
+.seup-move-doc-icon {
+    font-size: var(--text-2xl);
+    color: var(--primary-500);
+    margin-right: var(--space-4);
+}
+
+.seup-move-doc-name {
+    font-weight: var(--font-semibold);
+    color: var(--secondary-800);
+    margin-bottom: var(--space-1);
+}
+
+.seup-move-doc-description {
+    color: var(--secondary-600);
+    font-size: var(--text-sm);
+}
+
+/* Document action buttons */
+.seup-document-btn-move {
+    background-color: var(--success-500);
+    color: white;
+}
+
+.seup-document-btn-move:hover {
+    background-color: var(--success-600);
+}
+
 /* Omat Preview Modal Styles */
 .seup-omat-preview {
   font-family: var(--font-family-sans);
